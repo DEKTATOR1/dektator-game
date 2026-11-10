@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="theme-color" content="#090812">
+<title>DEKTATOR — Clicker</title>
+<style>
+:root{--bg:#090812;--panel:#151323;--purple:#9b5cff;--pink:#d45cff;--text:#f5f1ff;--muted:#aaa3bd;--line:#302744}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 50% 0,#24123d 0,#090812 48%);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,sans-serif;min-height:100vh}
+main{max-width:520px;margin:auto;padding:22px 16px 36px}.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:22px}
+.logo{font-weight:900;letter-spacing:3px;font-size:21px}.tag{color:#c7a8ff;font-size:11px;border:1px solid #68429b;border-radius:99px;padding:5px 9px}
+.card{background:linear-gradient(145deg,#1a1729,#11101b);border:1px solid var(--line);border-radius:22px;padding:18px;margin-bottom:14px;box-shadow:0 12px 35px #0005}
+.label{color:var(--muted);font-size:13px}.balance{text-align:center;padding:26px 16px}.coins{font-size:42px;font-weight:900;margin:5px 0}.coin-icon{font-size:24px}
+.clicker{width:205px;height:205px;border-radius:50%;border:2px solid #b77aff;background:radial-gradient(circle at 35% 28%,#b86cff,#6b2ac0 55%,#32105f);box-shadow:0 0 35px #9b5cff55,inset 0 0 22px #fff2;color:white;font-size:30px;font-weight:900;display:block;margin:22px auto 12px;cursor:pointer;touch-action:manipulation;transition:transform .08s}
+.clicker:active{transform:scale(.95)}.hint{font-size:12px;color:var(--muted)}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:10px}.stat{background:#0e0c17;border-radius:14px;padding:12px}.stat strong{display:block;font-size:18px;margin-top:3px}
+.section-title{font-size:17px;font-weight:800;margin:0 0 12px}.upgrade{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 0;border-top:1px solid #2b2439}.upgrade:first-of-type{border-top:0}.upgrade p{margin:3px 0 0;color:var(--muted);font-size:12px}
+button.buy{background:linear-gradient(90deg,var(--purple),var(--pink));border:0;border-radius:12px;color:white;padding:10px 13px;font-weight:800;min-width:105px}
+button.buy:disabled{opacity:.4}.bar{height:8px;background:#30283e;border-radius:20px;overflow:hidden;margin-top:8px}.bar span{display:block;height:100%;background:linear-gradient(90deg,#9b5cff,#e06bff);width:100%}
+.footer{text-align:center;color:#777087;font-size:11px;margin-top:20px;line-height:1.5}
+.toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:#2b1b42;border:1px solid #8054b4;padding:10px 15px;border-radius:12px;opacity:0;pointer-events:none;transition:opacity .2s}.toast.show{opacity:1}
+</style>
+</head>
+<body>
+<main>
+  <header class="top"><div class="logo">DEKTATOR</div><div class="tag">MINI CLICKER</div></header>
+  <section class="card balance">
+    <div class="label">ТВОЙ БАЛАНС</div>
+    <div class="coins"><span class="coin-icon">◆</span> <span id="coins">0</span></div>
+    <button class="clicker" id="tap" aria-label="Нажать">TAP</button>
+    <div class="hint">Нажимай и собирай игровые монеты</div>
+  </section>
+  <section class="card">
+    <div class="stats">
+      <div class="stat"><span class="label">За нажатие</span><strong>+<span id="perTap">1</span> ◆</strong></div>
+      <div class="stat"><span class="label">Энергия</span><strong><span id="energy">100</span>/100</strong><div class="bar"><span id="energyBar"></span></div></div>
+    </div>
+  </section>
+  <section class="card">
+    <h2 class="section-title">Улучшения</h2>
+    <div class="upgrade"><div><strong>Сильный клик</strong><p>+1 монета за нажатие</p></div><button class="buy" id="powerBuy">Купить · 50</button></div>
+    <div class="upgrade"><div><strong>Больше энергии</strong><p>Увеличивает запас на 20</p></div><button class="buy" id="energyBuy">Купить · 100</button></div>
+    <div class="upgrade"><div><strong>Автодоход</strong><p>+1 монета каждые 5 секунд</p></div><button class="buy" id="autoBuy">Купить · 250</button></div>
+  </section>
+  <div class="footer">DEKTATOR · Демоверсия игры<br>Монеты являются игровыми очками и не имеют денежной стоимости.</div>
+</main>
+<div class="toast" id="toast"></div>
+<script>
+const KEY='dektator_clicker_v1';
+const defaults={coins:0,perTap:1,energy:100,maxEnergy:100,powerCost:50,energyCost:100,autoCost:250,auto:0,last:Date.now()};
+let state={...defaults};
+try{const saved=JSON.parse(localStorage.getItem(KEY)||'null');if(saved)state={...defaults,...saved};}catch(e){}
+let lastToast=0;
+const $=id=>document.getElementById(id);
+function save(){state.last=Date.now();localStorage.setItem(KEY,JSON.stringify(state));}
+function toast(message){$('toast').textContent=message;$('toast').classList.add('show');clearTimeout(lastToast);lastToast=setTimeout(()=>$('toast').classList.remove('show'),1500);}
+function render(){
+ $('coins').textContent=Math.floor(state.coins).toLocaleString('ru-RU');
+ $('perTap').textContent=state.perTap;
+ $('energy').textContent=Math.floor(state.energy);
+ $('energyBar').style.width=(state.energy/state.maxEnergy*100)+'%';
+ $('powerBuy').textContent='Купить · '+state.powerCost;
+ $('energyBuy').textContent='Купить · '+state.energyCost;
+ $('autoBuy').textContent='Купить · '+state.autoCost;
+ $('powerBuy').disabled=state.coins<state.powerCost;
+ $('energyBuy').disabled=state.coins<state.energyCost;
+ $('autoBuy').disabled=state.coins<state.autoCost;
+}
+$('tap').addEventListener('click',()=>{
+ if(state.energy<1){toast('Энергия закончилась — подожди восстановления');return;}
+ state.coins+=state.perTap;state.energy-=1;save();render();
+});
+$('powerBuy').onclick=()=>buy('powerCost',()=>state.perTap+=1);
+$('energyBuy').onclick=()=>buy('energyCost',()=>{state.maxEnergy+=20;state.energy=Math.min(state.maxEnergy,state.energy+20);});
+$('autoBuy').onclick=()=>buy('autoCost',()=>state.auto+=1);
+function buy(costKey,apply){
+ if(state.coins<state[costKey])return;
+ state.coins-=state[costKey];apply();state[costKey]=Math.ceil(state[costKey]*1.65);save();render();toast('Улучшение куплено!');
+}
+function tick(){
+ const now=Date.now();
+ state.energy=Math.min(state.maxEnergy,state.energy+(now-state.last)/1000*0.8);
+ state.last=now;
+ if(state.auto)state.coins+=state.auto/5;
+ render();save();
+}
+setInterval(tick,1000);render();
+</script>
+</body>
+</html>
